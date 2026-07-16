@@ -52,6 +52,9 @@ class SourceConfig:
 # (name, label, url, fmt, param_style, region_hint)
 # 새 지자체 축제 API 는 여기 한 줄만 추가하면 자동 연동된다.
 DATAGOKR_ENDPOINTS: list[tuple[str, str, str, str, str, Optional[str]]] = [
+    # ⭐ 전국문화축제표준데이터 — 전국 모든 문화축제 + 위경도 (대표 소스)
+    ("national", "전국문화축제표준데이터",
+     "https://api.data.go.kr/openapi/tn_pubr_public_cltur_fstvl_api", "json", "std", None),
     ("daejeon", "대전광역시 문화축제",
      "https://apis.data.go.kr/6300000/openapi2022/festv/getfestv", "json", "std", "대전광역시"),
     ("ulsan", "울산광역시 문화축제",
@@ -140,14 +143,17 @@ _TITLE_KEYS = ["name", "title", "main_title", "fstvlnm", "festivalnm", "cnttsnm"
 _ID_KEYS = ["idx", "uc_seq", "contentid", "unqid", "seq", "id", "no", "fstvlseq", "mt20id"]
 _CATEGORY_KEYS = ["category", "gubun", "cat", "fstvlse", "dvsn", "dvsn1", "type", "genrenm"]
 _DESC_KEYS = ["content", "itemcntnts", "description", "cn", "dc", "fstvlcn", "cntnts",
-              "event_cntnt", "evnt_cntnt", "evnt_cn"]
+              "event_cntnt", "evnt_cntnt", "evnt_cn", "fstvlco"]
 _ADDR_KEYS = ["address", "addr1", "addr", "rdnmadr", "lnmadr", "fstvlplc", "location"]
 _PLACE_KEYS = ["place", "main_place", "opar", "spot", "searchplc",
                "eventplace", "std_nm", "fcltynm", "plc"]
 _ORG_KEYS = ["manage", "opener", "organ", "host", "hostinsttnm", "organizer",
-             "mnnstnm", "auspc", "sponsor", "event_host", "evnt_host"]
-_TEL_KEYS = ["phone", "tel", "cntct_tel", "cntctno", "telno", "cntctnumber"]
-_HOMEPAGE_KEYS = ["homepage", "homepage_url", "hmpg", "url", "relate_url", "hmpgurl"]
+             "mnnstnm", "auspc", "sponsor", "event_host", "evnt_host",
+             "auspcinsttnm", "suprtinsttnm"]
+_TEL_KEYS = ["phone", "tel", "cntct_tel", "cntctno", "telno", "cntctnumber",
+             "phonenumber"]
+_HOMEPAGE_KEYS = ["homepage", "homepage_url", "hmpg", "url", "relate_url", "hmpgurl",
+                  "homepageurl"]
 _FEE_KEYS = ["fee", "usage_amount", "utztnprc", "charge", "price", "fee_info"]
 _PERIOD_KEYS = ["undecided", "period", "usage_day", "fstvlperiod", "playtime"]
 _SDATE_KEYS = ["sdate", "eventstartdate", "startdate", "fstvlstdt", "begin_de",
@@ -240,7 +246,15 @@ def normalize_item(
     if not title:
         return None  # 제목 없으면 유효 데이터로 보지 않음
 
-    source_id = _clean_str(_pick(lm, _ID_KEYS)) or title  # 고유번호 없으면 제목으로 대체
+    # 고유번호가 없으면 제목+장소/주소로 키를 구성 (동명 축제 충돌 방지)
+    explicit_id = _clean_str(_pick(lm, _ID_KEYS))
+    if explicit_id:
+        source_id = explicit_id
+    else:
+        place_hint = _clean_str(_pick(lm, _PLACE_KEYS)) or _clean_str(
+            _pick(lm, _ADDR_KEYS)
+        ) or ""
+        source_id = f"{title}|{place_hint}"[:64]
 
     # 좌표 자동 판별
     coord_candidates = [lm.get(k) for k in _COORD_KEYS]
