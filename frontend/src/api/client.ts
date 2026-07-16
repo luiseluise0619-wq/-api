@@ -10,13 +10,14 @@ import type {
 } from '../types'
 import { DemoAPI } from './demo'
 
-const baseURL = import.meta.env.VITE_API_BASE || ''
+// 배포 기본 백엔드 주소 (Vercel 환경변수 VITE_API_BASE 로 덮어쓸 수 있음)
+const DEFAULT_API = 'https://festival-ai-map-api.onrender.com'
 
-// VITE_API_BASE 가 비어 있고, 개발 프록시가 없는 배포 환경(Vercel 등)이면
-// 시드 데이터 기반 데모 모드로 동작한다. (백엔드 연결 시 자동으로 실제 API 사용)
-const DEMO_MODE = !baseURL && !import.meta.env.DEV
+const isDev = import.meta.env.DEV
+// 개발: Vite 프록시(/api → localhost:8000). 배포: 환경변수 또는 기본 주소.
+const baseURL = import.meta.env.VITE_API_BASE || (isDev ? '' : DEFAULT_API)
 
-const api = axios.create({ baseURL, timeout: 30000 })
+const api = axios.create({ baseURL, timeout: 15000 })
 
 function cleanParams(f: Filters): Record<string, string> {
   const p: Record<string, string> = {}
@@ -84,6 +85,24 @@ const RealAPI = {
   },
 }
 
-// 배포 환경(백엔드 미연결)에서는 데모 API, 그 외에는 실제 API 사용
-export const FestivalAPI = DEMO_MODE ? DemoAPI : RealAPI
+// 백엔드를 먼저 시도하고, 실패(콜드스타트·CORS·오프라인) 시 데모 데이터로 폴백.
+// → 백엔드가 잠들거나 죽어도 화면이 깨지지 않는다.
+function withFallback<T extends object>(real: T, demo: T): T {
+  const wrapped: Record<string, unknown> = {}
+  for (const key of Object.keys(demo) as (keyof T)[]) {
+    const k = key as string
+    wrapped[k] = async (...args: unknown[]) => {
+      try {
+        return await (real as Record<string, (...a: unknown[]) => unknown>)[k](...args)
+      } catch (e) {
+        console.warn(`[api] 백엔드 호출 실패 → 데모 폴백: ${k}`, e)
+        return (demo as Record<string, (...a: unknown[]) => unknown>)[k](...args)
+      }
+    }
+  }
+  return wrapped as T
+}
+
+// 개발은 프록시로 직접, 배포는 폴백 래퍼 사용
+export const FestivalAPI = isDev ? RealAPI : withFallback(RealAPI, DemoAPI)
 
