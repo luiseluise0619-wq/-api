@@ -55,7 +55,9 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
+    # 모든 Vercel 배포 도메인(*.vercel.app)을 자동 허용 → CORS_ORIGINS 설정 불필요
+    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_credentials=False,  # 쿠키/인증 미사용 공개 API
     allow_methods=["*"],
     allow_headers=["*"],
 )
