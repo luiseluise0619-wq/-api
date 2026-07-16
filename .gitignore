@@ -1,0 +1,29 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+*.db
+*.sqlite3
+
+# --- Secrets / env ---
+.env
+.env.local
+*/.env
+backend/.env
+frontend/.env
+
+# --- Node / Vite ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# --- Editor / OS ---
+.vscode/
+.idea/
+.DS_Store
+*.log
