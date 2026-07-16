@@ -12,6 +12,12 @@ from services import gemini_service
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 
+@router.get("/health")
+def ai_health():
+    """Gemini 연결 진단 (키/모델/실제 호출 결과)."""
+    return gemini_service.diagnose()
+
+
 @router.get("/analyze/{festival_id}", response_model=AIAnalysisResponse)
 def analyze(festival_id: int, db: Session = Depends(get_db)):
     f = db.get(Festival, festival_id)

@@ -32,6 +32,32 @@ def _get_model():
     return _model
 
 
+def diagnose() -> dict:
+    """Gemini 연결 실제 상태를 반환(키/모델/실제 호출 에러)."""
+    key = settings.GEMINI_API_KEY or ""
+    info: dict = {
+        "key_present": bool(key),
+        "key_prefix": (key[:4] + "…") if key else None,
+        "key_len": len(key),
+        "model": settings.GEMINI_MODEL,
+        "sdk_available": genai is not None,
+    }
+    if not key or genai is None:
+        info["ok"] = False
+        info["error"] = "GEMINI_API_KEY 미설정 또는 SDK 없음"
+        return info
+    try:
+        genai.configure(api_key=key)
+        m = genai.GenerativeModel(settings.GEMINI_MODEL)
+        resp = m.generate_content("한 단어로만 답해: 준비됐나요?")
+        info["ok"] = True
+        info["sample"] = (getattr(resp, "text", "") or "")[:60]
+    except Exception as exc:  # noqa: BLE001
+        info["ok"] = False
+        info["error"] = f"{type(exc).__name__}: {str(exc)[:400]}"
+    return info
+
+
 ANALYSIS_SECTIONS = [
     ("summary", "축제 개요 요약"),
     ("visitors", "예상 방문객 분석"),
