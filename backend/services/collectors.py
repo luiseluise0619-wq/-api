@@ -106,6 +106,14 @@ def default_sources() -> list[SourceConfig]:
             kind="tourapi", fmt="json", region_hint=None,
         ))
 
+    if settings.SEOUL_OPEN_API_KEY:
+        sources.append(SourceConfig(
+            name="seoul",
+            label="서울시 문화행사",
+            url="http://openapi.seoul.go.kr:8088",
+            kind="seoul", fmt="json", region_hint="서울특별시",
+        ))
+
     if settings.KOPIS_API_KEY:
         sources.append(SourceConfig(
             name="kopis",
@@ -141,7 +149,8 @@ def default_sources() -> list[SourceConfig]:
 _TITLE_KEYS = ["name", "title", "main_title", "fstvlnm", "festivalnm", "cnttsnm",
                "fstvl_nm", "event_nm", "evnt_nm", "prfnm", "fest_nm"]
 _ID_KEYS = ["idx", "uc_seq", "contentid", "unqid", "seq", "id", "no", "fstvlseq", "mt20id"]
-_CATEGORY_KEYS = ["category", "gubun", "cat", "fstvlse", "dvsn", "dvsn1", "type", "genrenm"]
+_CATEGORY_KEYS = ["category", "gubun", "cat", "fstvlse", "dvsn", "dvsn1", "type",
+                  "genrenm", "codename", "themecode"]
 _DESC_KEYS = ["content", "itemcntnts", "description", "cn", "dc", "fstvlcn", "cntnts",
               "event_cntnt", "evnt_cntnt", "evnt_cn", "fstvlco"]
 _ADDR_KEYS = ["address", "addr1", "addr", "rdnmadr", "lnmadr", "fstvlplc", "location"]
@@ -149,23 +158,24 @@ _PLACE_KEYS = ["place", "main_place", "opar", "spot", "searchplc",
                "eventplace", "std_nm", "fcltynm", "plc"]
 _ORG_KEYS = ["manage", "opener", "organ", "host", "hostinsttnm", "organizer",
              "mnnstnm", "auspc", "sponsor", "event_host", "evnt_host",
-             "auspcinsttnm", "suprtinsttnm"]
+             "auspcinsttnm", "suprtinsttnm", "org_name"]
 _TEL_KEYS = ["phone", "tel", "cntct_tel", "cntctno", "telno", "cntctnumber",
-             "phonenumber"]
+             "phonenumber", "inquiry"]
 _HOMEPAGE_KEYS = ["homepage", "homepage_url", "hmpg", "url", "relate_url", "hmpgurl",
-                  "homepageurl"]
-_FEE_KEYS = ["fee", "usage_amount", "utztnprc", "charge", "price", "fee_info"]
+                  "homepageurl", "hmpg_addr", "org_link"]
+_FEE_KEYS = ["fee", "usage_amount", "utztnprc", "charge", "price", "fee_info", "use_fee"]
 _PERIOD_KEYS = ["undecided", "period", "usage_day", "fstvlperiod", "playtime"]
 _SDATE_KEYS = ["sdate", "eventstartdate", "startdate", "fstvlstdt", "begin_de",
                "start", "fstvlstartdate", "st_date", "evnt_bgng_ymd", "evnt_bgng_de",
-               "prfpdfrom", "fest_bgng_ymd"]
+               "prfpdfrom", "fest_bgng_ymd", "strtdate"]
 _EDATE_KEYS = ["edate", "eventenddate", "enddate", "fstvlenddt", "end_de",
                "end", "fstvlenddate", "ed_date", "evnt_end_ymd", "evnt_end_de",
-               "prfpdto", "fest_end_ymd"]
+               "prfpdto", "fest_end_ymd", "end_date"]
 _IMG_KEYS = ["images", "main_img_normal", "firstimage", "image", "img",
-             "main_img_thumb", "imageurl", "filepath", "imgurl", "poster"]
+             "main_img_thumb", "imageurl", "filepath", "imgurl", "poster", "main_img"]
 _COORD_KEYS = ["xposition", "yposition", "lat", "lng", "latitude", "longitude",
-               "mapx", "mapy", "la", "lo", "gpsx", "gpsy", "x", "y", "coord_x", "coord_y"]
+               "mapx", "mapy", "la", "lo", "gpsx", "gpsy", "x", "y", "coord_x", "coord_y",
+               "lot"]
 _LINK_KEYS = ["link", "detail_url", "url", "homepage_url"]
 
 
@@ -276,7 +286,9 @@ def normalize_item(
         "title": title[:300],
         "category": _clean_str(_pick(lm, _CATEGORY_KEYS)),
         "region": region,
-        "sigungu": _clean_str(lm.get("area") or lm.get("gugun_nm") or lm.get("sigungu")),
+        "sigungu": _clean_str(
+            lm.get("area") or lm.get("gugun_nm") or lm.get("sigungu") or lm.get("guname")
+        ),
         "place": _clean_str(_pick(lm, _PLACE_KEYS)),
         "address": address,
         "lat": lat,
@@ -464,6 +476,40 @@ def _collect_paged(
             break
 
 
+def _collect_seoul(
+    source: SourceConfig, seen_ids: set[str], collected: list[dict],
+    chunk: int = 1000, max_total: int = 20000,
+) -> None:
+    """서울 열린데이터광장: 경로형 URL + 인덱스 구간 페이징."""
+    base = source.url.rstrip("/")
+    key = settings.SEOUL_OPEN_API_KEY
+    start = 1
+    while start <= max_total:
+        end = start + chunk - 1
+        url = f"{base}/{key}/json/culturalEventInfo/{start}/{end}/"
+        try:
+            data = _http_get(url, {}, "json")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[collector:seoul] {start}-{end} 요청 실패: {exc}")
+            break
+        records = find_records(data)
+        if not records:
+            break
+        new_on_chunk = 0
+        for rec in records:
+            norm = normalize_item(rec, source)
+            if not norm:
+                continue
+            if norm["source_id"] in seen_ids:
+                continue
+            seen_ids.add(norm["source_id"])
+            collected.append(norm)
+            new_on_chunk += 1
+        if len(records) < chunk or new_on_chunk == 0:
+            break
+        start += chunk
+
+
 def fetch_source(
     source: SourceConfig, page_size: int = 100, max_pages: int = 30
 ) -> list[dict]:
@@ -471,7 +517,9 @@ def fetch_source(
     collected: list[dict] = []
     seen_ids: set[str] = set()
 
-    if source.kind == "kopis":
+    if source.kind == "seoul":
+        _collect_seoul(source, seen_ids, collected)
+    elif source.kind == "kopis":
         for window in _month_windows():
             _collect_paged(source, min(page_size, 100), max_pages,
                            seen_ids, collected, window)
@@ -480,6 +528,75 @@ def fetch_source(
 
     print(f"[collector:{source.name}] 정규화 {len(collected)}건 수집")
     return collected
+
+
+def fetch_markets(page_size: int = 1000, max_pages: int = 20) -> list[dict]:
+    """전국전통시장표준데이터 수집 → 정규화된 시장 레코드 리스트."""
+    if not settings.PUBLIC_DATA_API_KEY:
+        return []
+    url = "https://api.data.go.kr/openapi/tn_pubr_public_trdit_mrkt_api"
+    out: list[dict] = []
+    seen: set[str] = set()
+    for page in range(1, max_pages + 1):
+        params = {
+            "serviceKey": settings.PUBLIC_DATA_API_KEY,
+            "pageNo": page, "numOfRows": page_size, "type": "json",
+        }
+        try:
+            data = _http_get(url, params, "json")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[collector:markets] page {page} 실패: {exc}")
+            break
+        records = find_records(data) or [
+            r for r in _iter_dicts(data) if _lower_map(r).get("mrktnm")
+        ]
+        if not records:
+            break
+        new = 0
+        for raw in records:
+            lm = _lower_map(raw)
+            name = _clean_str(lm.get("mrktnm"))
+            if not name:
+                continue
+            addr = _clean_str(lm.get("rdnmadr") or lm.get("lnmadr"))
+            lat, lng = normalize_coords([lm.get("latitude"), lm.get("longitude")])
+            sid = f"{name}|{addr or ''}"[:120]
+            if sid in seen:
+                continue
+            seen.add(sid)
+            try:
+                stores = int(float(str(lm.get("stornumber")).replace(",", "")))
+            except (TypeError, ValueError):
+                stores = None
+            out.append({
+                "source_id": sid,
+                "name": name[:200],
+                "market_type": _clean_str(lm.get("mrkttype")),
+                "region": detect_region(addr, name),
+                "sigungu": None,
+                "address": addr,
+                "lat": lat, "lng": lng,
+                "stores": stores,
+                "items": _clean_str(lm.get("trtmntprdlst")),
+                "homepage": _clean_str(lm.get("homepageurl")),
+                "tel": _clean_str(lm.get("phonenumber")),
+                "estbl_year": _clean_str(lm.get("estblyear")),
+            })
+            new += 1
+        if len(records) < page_size or new == 0:
+            break
+    print(f"[collector:markets] 전통시장 {len(out)}건 수집")
+    return out
+
+
+def _iter_dicts(node: Any):
+    if isinstance(node, dict):
+        yield node
+        for v in node.values():
+            yield from _iter_dicts(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from _iter_dicts(v)
 
 
 def fetch_all() -> dict[str, list[dict]]:

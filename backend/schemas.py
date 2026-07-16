@@ -81,3 +81,32 @@ class AskRequest(BaseModel):
 class AskResponse(BaseModel):
     answer: str
     generated_by: str
+
+
+# --- 전통시장(상권) ---------------------------------------------------------
+class MarketOut(BaseModel):
+    id: int
+    name: str
+    market_type: Optional[str] = None
+    region: Optional[str] = None
+    sigungu: Optional[str] = None
+    address: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    stores: int = 0
+    items: Optional[str] = None
+    homepage: Optional[str] = None
+    tel: Optional[str] = None
+    distance_km: Optional[float] = None
+
+    class Config:
+        from_attributes = True
+
+
+class MarketNearResponse(BaseModel):
+    center_lat: float
+    center_lng: float
+    radius_km: float
+    market_count: int
+    total_stores: int
+    markets: list[MarketOut]

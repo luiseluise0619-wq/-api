@@ -17,6 +17,19 @@ const STATUS = [
   { v: 'ended', label: '종료' },
 ]
 
+// 월별 필터 기준 연도 (시드 데이터 기준)
+const MONTH_YEAR = 2026
+function monthRange(m: number): { date_from: string; date_to: string } {
+  const mm = String(m).padStart(2, '0')
+  const last = new Date(MONTH_YEAR, m, 0).getDate()
+  return { date_from: `${MONTH_YEAR}-${mm}-01`, date_to: `${MONTH_YEAR}-${mm}-${last}` }
+}
+function currentMonthValue(v: FiltersType): string {
+  if (!v.date_from) return ''
+  const m = v.date_from.slice(5, 7)
+  return String(Number(m))
+}
+
 export default function Filters({
   regions,
   categories,
@@ -88,6 +101,23 @@ export default function Filters({
           </button>
         ))}
       </div>
+
+      <select
+        className={selectCls}
+        value={currentMonthValue(value)}
+        onChange={(e) => {
+          const m = e.target.value
+          if (!m) onChange({ ...value, date_from: undefined, date_to: undefined })
+          else onChange({ ...value, ...monthRange(Number(m)) })
+        }}
+      >
+        <option value="">월별 보기 · 전체 기간</option>
+        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+          <option key={m} value={m}>
+            {MONTH_YEAR}년 {m}월 축제
+          </option>
+        ))}
+      </select>
 
       <div className="grid grid-cols-2 gap-2">
         <input

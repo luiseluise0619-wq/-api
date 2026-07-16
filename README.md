@@ -126,7 +126,13 @@ npm run dev                          # http://localhost:5173
 | GET | `/api/ai/analyze/{id}` | Gemini 심층 분석 |
 | POST | `/api/ai/ask` | 자유 질문 |
 | GET | `/api/social?query=&keyword=` | SNS 소셜 피드 |
+| GET | `/api/markets/near?lat=&lng=&radius_km=` | 축제 반경 내 전통시장·점포수(소상공인 상권) |
+| GET | `/api/markets?region=` | 전통시장 목록 |
 | POST | `/api/collect` | 수동 전체 수집 |
+
+**연동 소스**: 전국문화축제표준데이터 · 전국전통시장표준데이터 · 서울시 문화행사 ·
+대전/울산/부산/보성/괴산/서천/세종/영천/경주/춘천/광양 · 한국관광공사 TourAPI · KOPIS · ifac
++ 문화체육관광부 2026 엑셀 시드. 지도에서 **월별 보기**·지역/분류/상태 필터·히트맵 지원.
 
 ---
 

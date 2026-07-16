@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     KOPIS_API_KEY: str = ""
     # YouTube Data API v3 키 (선택) — 소셜 패널에서 실제 영상 검색에 사용
     YOUTUBE_API_KEY: str = ""
+    # 서울 열린데이터광장 인증키 (선택) — 서울시 문화행사
+    SEOUL_OPEN_API_KEY: str = ""
 
     # 추가 소스 주입용 JSON 배열 문자열.
     # 예) '[{"name":"changnyeong","label":"창녕군 행사",

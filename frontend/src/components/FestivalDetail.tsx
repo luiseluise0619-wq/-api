@@ -2,6 +2,7 @@ import type { Festival } from '../types'
 import { festStatus, formatPeriod, statusMeta } from '../utils'
 import AIAnalysis from './AIAnalysis'
 import AskAI from './AskAI'
+import NearbyMarkets from './NearbyMarkets'
 import ScoreBadge from './ScoreBadge'
 
 interface Props {
@@ -84,6 +85,9 @@ export default function FestivalDetail({ festival, onClose }: Props) {
               </p>
             </div>
           )}
+
+          {/* 주변 전통시장 상권 (소상공인 연관) */}
+          <NearbyMarkets lat={festival.lat} lng={festival.lng} />
 
           {/* AI 심층 분석 */}
           <AIAnalysis festivalId={festival.id} />

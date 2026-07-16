@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from config import settings
 from database import SessionLocal
-from models import Festival
+from models import Festival, Market
 from services import collectors
 from services.geocode import LAT_MIN, LAT_MAX, LNG_MIN, LNG_MAX
 from services.scoring import compute_scores
@@ -59,6 +59,24 @@ def run_collection() -> dict:
                         setattr(existing, k, v)
                     updated += 1
         db.commit()
+
+        # 전통시장(상권) 수집·저장
+        market_count = 0
+        try:
+            for m in collectors.fetch_markets():
+                existing = db.execute(
+                    select(Market).where(Market.source_id == m["source_id"])
+                ).scalar_one_or_none()
+                if existing is None:
+                    db.add(Market(**m))
+                else:
+                    for k, v in m.items():
+                        setattr(existing, k, v)
+                market_count += 1
+            db.commit()
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            print(f"[scheduler] 전통시장 수집 실패: {exc}")
     except Exception as exc:  # noqa: BLE001
         db.rollback()
         raise
@@ -70,6 +88,7 @@ def run_collection() -> dict:
         "updated": updated,
         "total_seen": total_seen,
         "per_source": {k: len(v) for k, v in per_source.items()},
+        "markets": market_count,
         "elapsed_sec": round((dt.datetime.utcnow() - started).total_seconds(), 1),
     }
     print(f"[scheduler] 수집 완료: {summary}")

@@ -90,3 +90,47 @@ class Festival(Base):
             "ai_score": self.ai_score or 0,
             "popularity": self.popularity or 0,
         }
+
+
+class Market(Base):
+    """전국전통시장표준데이터 — 축제 주변 상권(소상공인) 분석용."""
+
+    __tablename__ = "markets"
+    __table_args__ = (
+        UniqueConstraint("source_id", name="uq_market_source"),
+        Index("ix_market_coords", "lat", "lng"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    source_id = Column(String(120), nullable=False)
+    name = Column(String(200), nullable=False)
+    market_type = Column(String(50))       # 시장유형(상설/정기 등)
+    region = Column(String(50), index=True)
+    sigungu = Column(String(50))
+    address = Column(String(400))
+    lat = Column(Float)
+    lng = Column(Float)
+    stores = Column(Integer)               # 점포수
+    items = Column(String(500))            # 취급품목
+    homepage = Column(String(500))
+    tel = Column(String(100))
+    estbl_year = Column(String(20))
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "market_type": self.market_type,
+            "region": self.region,
+            "sigungu": self.sigungu,
+            "address": self.address,
+            "lat": self.lat,
+            "lng": self.lng,
+            "stores": self.stores or 0,
+            "items": self.items,
+            "homepage": self.homepage,
+            "tel": self.tel,
+        }

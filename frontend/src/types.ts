@@ -51,6 +51,28 @@ export interface AskResult {
   generated_by: string
 }
 
+export interface Market {
+  id: number
+  name: string
+  market_type?: string | null
+  region?: string | null
+  address?: string | null
+  lat?: number | null
+  lng?: number | null
+  stores: number
+  items?: string | null
+  distance_km?: number | null
+}
+
+export interface MarketNear {
+  center_lat: number
+  center_lng: number
+  radius_km: number
+  market_count: number
+  total_stores: number
+  markets: Market[]
+}
+
 export interface YouTubeItem {
   title: string
   url: string

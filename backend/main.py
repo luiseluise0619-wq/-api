@@ -15,6 +15,7 @@ from config import settings
 from database import Base, engine
 from routers import ai as ai_router
 from routers import festivals as festivals_router
+from routers import markets as markets_router
 from routers import social as social_router
 from schemas import CollectResult
 from services import scheduler
@@ -52,6 +53,7 @@ app.add_middleware(
 app.include_router(festivals_router.router)
 app.include_router(ai_router.router)
 app.include_router(social_router.router)
+app.include_router(markets_router.router)
 
 
 @app.get("/api/health")
