@@ -25,7 +25,11 @@ from services import scheduler
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 테이블 생성 (운영에서는 Alembic 권장)
-    Base.metadata.create_all(bind=engine)
+    # DB 가 일시적으로 불가해도 서버는 뜨도록(헬스체크 통과) 실패를 흡수한다.
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[startup] DB 초기화 실패(서버는 계속 기동): {exc}")
     scheduler.start_scheduler()
     if settings.COLLECT_ON_STARTUP:
         # 수집을 백그라운드 스레드에서 실행해 서버 부팅(포트 오픈)을 막지 않는다.
