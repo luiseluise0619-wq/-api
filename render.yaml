@@ -1,0 +1,36 @@
+# Render Blueprint — 백엔드(FastAPI) 원클릭 배포
+# render.com → New → Blueprint → 이 저장소 선택 → 아래 env 값 입력
+services:
+  - type: web
+    name: festival-ai-map-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      # Supabase 연결 문자열 (postgresql+psycopg2://... 형식)
+      - key: DATABASE_URL
+        sync: false
+      # 공공데이터포털 일반 인증키(Decoding)
+      - key: PUBLIC_DATA_API_KEY
+        sync: false
+      # Google Gemini 키
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.0-flash
+      # (선택) 추가 소스 키
+      - key: SEOUL_OPEN_API_KEY
+        sync: false
+      - key: KOPIS_API_KEY
+        sync: false
+      - key: YOUTUBE_API_KEY
+        sync: false
+      # 배포 직후 1회 자동 수집
+      - key: COLLECT_ON_STARTUP
+        value: "true"
+      # Vercel 프론트 도메인 (예: https://api-xxxx.vercel.app)
+      - key: CORS_ORIGINS
+        sync: false
