@@ -3,6 +3,7 @@ import { FestivalAPI } from './api/client'
 import Filters from './components/Filters'
 import FestivalDetail from './components/FestivalDetail'
 import MapView from './components/MapView'
+import MonthlyList from './components/MonthlyList'
 import SocialPanel from './components/SocialPanel'
 import StatCards from './components/StatCards'
 import TopFestivals from './components/TopFestivals'
@@ -80,11 +81,7 @@ export default function App() {
             onSelect={setSelected}
             numbered
           />
-          <TopFestivals
-            title="📅 이번 달 추천 축제"
-            festivals={thisMonth}
-            onSelect={setSelected}
-          />
+          <MonthlyList filters={filters} onSelect={setSelected} />
           <AskAI placeholder="예) 소상공인에게 유리한 축제는?" />
         </div>
       </aside>

@@ -396,7 +396,7 @@ def _build_params(
     # 포맷 플래그는 API 마다 이름이 달라 흔한 것들을 함께 전달 (모르는 값은 무시됨)
     params.update({
         "resultType": fmt, "_type": fmt, "dataType": fmt.upper(),
-        "dataTy": fmt, "returnType": fmt, "type": fmt.capitalize(),
+        "dataTy": fmt, "returnType": fmt, "type": fmt,
     })
     params.update(source.extra_params)
     return params

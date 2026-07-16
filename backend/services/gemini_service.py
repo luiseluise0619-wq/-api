@@ -18,18 +18,41 @@ except Exception:  # noqa: BLE001
     genai = None
 
 
-_model = None
+def _model_candidates() -> list[str]:
+    """시도할 모델 목록. 무료 할당량(429/limit:0) 시 다음 모델로 자동 전환."""
+    ordered = [
+        settings.GEMINI_MODEL,
+        "gemini-2.0-flash-lite",
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b",
+        "gemini-flash-latest",
+        "gemini-pro-latest",
+    ]
+    seen: list[str] = []
+    for m in ordered:
+        if m and m not in seen:
+            seen.append(m)
+    return seen
 
 
-def _get_model():
-    global _model
-    if _model is not None:
-        return _model
+def _generate(prompt: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """여러 모델을 순차 시도. (텍스트, 사용된 모델, 마지막에러) 반환."""
     if not settings.GEMINI_API_KEY or genai is None:
-        return None
+        return None, None, "GEMINI_API_KEY 미설정 또는 SDK 없음"
     genai.configure(api_key=settings.GEMINI_API_KEY)
-    _model = genai.GenerativeModel(settings.GEMINI_MODEL)
-    return _model
+    last_err = None
+    for name in _model_candidates():
+        try:
+            model = genai.GenerativeModel(name)
+            resp = model.generate_content(prompt)
+            text = (getattr(resp, "text", "") or "").strip()
+            if text:
+                return text, name, None
+        except Exception as exc:  # noqa: BLE001
+            last_err = f"{type(exc).__name__}: {str(exc)[:150]}"
+            print(f"[gemini] 모델 {name} 실패 → 다음 시도: {last_err}")
+            continue
+    return None, None, last_err
 
 
 def diagnose() -> dict:
@@ -42,19 +65,19 @@ def diagnose() -> dict:
         "model": settings.GEMINI_MODEL,
         "sdk_available": genai is not None,
     }
+    info["candidates"] = _model_candidates()
     if not key or genai is None:
         info["ok"] = False
         info["error"] = "GEMINI_API_KEY 미설정 또는 SDK 없음"
         return info
-    try:
-        genai.configure(api_key=key)
-        m = genai.GenerativeModel(settings.GEMINI_MODEL)
-        resp = m.generate_content("한 단어로만 답해: 준비됐나요?")
+    text, used, err = _generate("한 단어로만 답해: 준비됐나요?")
+    if text:
         info["ok"] = True
-        info["sample"] = (getattr(resp, "text", "") or "")[:60]
-    except Exception as exc:  # noqa: BLE001
+        info["used_model"] = used
+        info["sample"] = text[:60]
+    else:
         info["ok"] = False
-        info["error"] = f"{type(exc).__name__}: {str(exc)[:400]}"
+        info["error"] = err
     return info
 
 
@@ -86,10 +109,6 @@ def _festival_context(f: dict) -> str:
 
 def analyze_festival(f: dict) -> tuple[dict, str]:
     """축제 상세 분석 dict 와 생성자(gemini/fallback) 반환."""
-    model = _get_model()
-    if model is None:
-        return _fallback_analysis(f), "fallback"
-
     section_desc = "\n".join(f"- {key}: {label}" for key, label in ANALYSIS_SECTIONS)
     prompt = f"""너는 대한민국 지역축제와 상권·지역경제를 분석하는 전문 컨설턴트다.
 아래 축제 정보를 바탕으로 각 항목을 한국어로 구체적이고 실용적으로 분석하라.
@@ -103,24 +122,20 @@ def analyze_festival(f: dict) -> tuple[dict, str]:
 
 각 값은 2~4문장의 문자열로 작성. sns_ideas 는 3~5개의 아이디어를 한 문자열에 줄바꿈으로.
 """
-    try:
-        resp = model.generate_content(prompt)
-        text = (resp.text or "").strip()
+    text, used, err = _generate(prompt)
+    if text:
         data = _extract_json(text)
         if data:
-            # 누락된 섹션은 빈 문자열로 보정
-            return {k: str(data.get(k, "")).strip() for k, _ in ANALYSIS_SECTIONS}, "gemini"
-    except Exception as exc:  # noqa: BLE001
-        print(f"[gemini] 분석 실패, 폴백 사용: {exc}")
+            result = {k: str(data.get(k, "")).strip() for k, _ in ANALYSIS_SECTIONS}
+            return result, "gemini"
+    if err:
+        print(f"[gemini] 분석 폴백: {err}")
     return _fallback_analysis(f), "fallback"
 
 
 def ask_question(question: str, f: Optional[dict]) -> tuple[str, str]:
     """축제 맥락(선택) + 질문에 대한 자유 응답."""
-    model = _get_model()
     context = _festival_context(f) if f else "특정 축제가 지정되지 않음."
-    if model is None:
-        return _fallback_answer(question, f), "fallback"
     prompt = f"""너는 대한민국 지역축제·상권 분석 전문가다.
 아래 축제 맥락을 참고하여 사용자 질문에 한국어로 구체적이고 실용적으로 답하라.
 근거와 함께 3~6문장으로 답하되, 단정적 수치는 추정임을 밝혀라.
@@ -131,13 +146,11 @@ def ask_question(question: str, f: Optional[dict]) -> tuple[str, str]:
 [질문]
 {question}
 """
-    try:
-        resp = model.generate_content(prompt)
-        answer = (resp.text or "").strip()
-        if answer:
-            return answer, "gemini"
-    except Exception as exc:  # noqa: BLE001
-        print(f"[gemini] 질문 응답 실패, 폴백 사용: {exc}")
+    answer, used, err = _generate(prompt)
+    if answer:
+        return answer, "gemini"
+    if err:
+        print(f"[gemini] 질문 폴백: {err}")
     return _fallback_answer(question, f), "fallback"
 
 
