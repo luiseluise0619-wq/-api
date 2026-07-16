@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -27,10 +28,15 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     scheduler.start_scheduler()
     if settings.COLLECT_ON_STARTUP:
-        try:
-            await run_in_threadpool(scheduler.run_collection)
-        except Exception as exc:  # noqa: BLE001
-            print(f"[startup] 초기 수집 실패: {exc}")
+        # 수집을 백그라운드 스레드에서 실행해 서버 부팅(포트 오픈)을 막지 않는다.
+        # (Render 등에서 시작이 지연되어 배포 실패로 판정되는 것을 방지)
+        def _bg_collect():
+            try:
+                scheduler.run_collection()
+            except Exception as exc:  # noqa: BLE001
+                print(f"[startup] 초기 수집 실패: {exc}")
+
+        threading.Thread(target=_bg_collect, daemon=True).start()
     yield
     scheduler.shutdown_scheduler()
 
