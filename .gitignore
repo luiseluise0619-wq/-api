@@ -27,3 +27,6 @@ dist-ssr/
 .idea/
 .DS_Store
 *.log
+
+# 데모용 임시 데이터 내보내기
+scratch_*.json
