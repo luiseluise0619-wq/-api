@@ -641,6 +641,15 @@ def fetch_all() -> dict[str, list[dict]]:
     except Exception as exc:  # noqa: BLE001
         print(f"[collector:local] 로컬 임포트 실패: {exc}")
 
+    # 1-2) 다운로드 파일 임포트(data/imports/*.csv|xlsx|json) — API 키 불필요
+    try:
+        from services import file_import
+        file_recs = file_import.import_dir(settings.LOCAL_IMPORT_DIR)
+        if file_recs:
+            result["file_import"] = file_recs
+    except Exception as exc:  # noqa: BLE001
+        print(f"[collector:file] 파일 임포트 실패: {exc}")
+
     # 2) 공공 API 소스들
     for source in default_sources():
         try:

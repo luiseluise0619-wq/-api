@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     # 문화체육관광부 2026 지역축제 엑셀 (로컬 시드 데이터, API 키 불필요)
     LOCAL_FESTIVAL_XLSX: str = "data/2026_festivals.xlsx"
 
+    # data.go.kr 등에서 다운로드한 파일(CSV/XLSX/JSON) 임포트 폴더 (API 키 불필요)
+    LOCAL_IMPORT_DIR: str = "data/imports"
+
     # --- Google Gemini ------------------------------------------------------
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.0-flash"

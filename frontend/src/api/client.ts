@@ -85,6 +85,23 @@ const RealAPI = {
   },
 }
 
+// 파일 업로드 임포트 — 항상 백엔드로 전송 (data.go.kr 다운로드 파일 추가)
+export async function uploadImport(file: File): Promise<{
+  file: string
+  normalized: number
+  inserted: number
+  updated: number
+  message: string
+}> {
+  const form = new FormData()
+  form.append('file', file)
+  const { data } = await api.post('/api/import/upload', form, {
+    timeout: 120000,
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
 // 백엔드를 먼저 시도하고, 실패(콜드스타트·CORS·오프라인) 시 데모 데이터로 폴백.
 // → 백엔드가 잠들거나 죽어도 화면이 깨지지 않는다.
 function withFallback<T extends object>(real: T, demo: T): T {
