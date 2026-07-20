@@ -70,6 +70,19 @@ app.include_router(markets_router.router)
 app.include_router(imports_router.router)
 
 
+@app.get("/")
+def root():
+    return {
+        "service": "Festival AI Map API",
+        "status": "running",
+        "docs": "/docs",
+        "endpoints": [
+            "/api/health", "/api/festivals/map", "/api/festivals/stats",
+            "/api/festivals?q=검색어", "/api/markets/collect", "/api/collect (POST)",
+        ],
+    }
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok", "service": "festival-ai-map"}
