@@ -2,7 +2,6 @@ import type { Festival } from '../types'
 import { festStatus, formatPeriod, sourceMeta, statusMeta } from '../utils'
 import AskAI from './AskAI'
 import NearbyMarkets from './NearbyMarkets'
-import StoredInsights from './StoredInsights'
 
 interface Props {
   festival: Festival | null
@@ -52,10 +51,16 @@ export default function FestivalDetail({ festival, onClose }: Props) {
           )}
 
           {/* 메타 정보 */}
-          {(festival.lat == null || festival.lng == null) && (
+          {festival.lat == null || festival.lng == null ? (
             <div className="text-[12px] text-amber-400/80 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">
               📍 이 축제는 좌표(위치)가 제공되지 않아 지도 위치가 미정입니다.
             </div>
+          ) : (
+            (festival.source === 'seed' || festival.source === 'mocst2026') && (
+              <div className="text-[11px] text-white/40 px-1">
+                ※ 지도 위치는 시군구 중심 기준 근사값입니다 (원본 데이터에 정확 좌표 없음).
+              </div>
+            )
           )}
 
           <div className="bg-card border border-border rounded-xl divide-y divide-border text-sm">
@@ -84,10 +89,7 @@ export default function FestivalDetail({ festival, onClose }: Props) {
             </div>
           )}
 
-          {/* 저장 정보 기반 분석 (Gemini 미사용) */}
-          <StoredInsights festival={festival} />
-
-          {/* 주변 전통시장 상권 (소상공인 연관) */}
+          {/* 주변 전통시장 상권 (실제 소상공인시장진흥공단 데이터) */}
           <NearbyMarkets lat={festival.lat} lng={festival.lng} />
 
           {/* 이 축제에 대한 질문 — 여기서만 Gemini 호출 */}
