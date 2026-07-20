@@ -22,6 +22,29 @@ from services.scoring import festival_status
 
 router = APIRouter(prefix="/api/festivals", tags=["festivals"])
 
+# 연관 키워드 확장 — '소상공인' 검색 시 관련 축제까지 매칭
+SYNONYMS: dict[str, list[str]] = {
+    "소상공인": ["소상공인", "시장", "상권", "전통시장", "먹거리", "특산", "야시장",
+                "장터", "상인", "골목", "로컬", "창업"],
+    "전통시장": ["전통시장", "시장", "장터", "상인", "먹거리", "상권"],
+    "상권": ["상권", "시장", "소상공인", "먹거리", "전통시장"],
+    "먹거리": ["먹거리", "음식", "맛", "미식", "푸드", "특산", "한우", "국밥"],
+    "꽃": ["꽃", "벚꽃", "장미", "유채", "튤립", "연꽃", "국화", "매화", "철쭉"],
+    "불꽃": ["불꽃", "불빛", "빛", "야경", "등불", "유등"],
+    "음악": ["음악", "재즈", "락", "뮤직", "콘서트", "가요", "버스킹"],
+    "문화": ["문화", "예술", "전통", "민속", "역사"],
+    "바다": ["바다", "해변", "해수욕", "항", "포구", "어시장"],
+    "겨울": ["겨울", "눈", "얼음", "빙어", "산천어", "눈꽃"],
+}
+
+
+def _expand_query(q: str) -> list[str]:
+    key = q.strip()
+    for k, terms in SYNONYMS.items():
+        if key == k or k in key:
+            return terms
+    return [key]
+
 
 def _apply_filters(
     stmt,
@@ -37,10 +60,18 @@ def _apply_filters(
     if category:
         stmt = stmt.where(Festival.category.ilike(f"%{category}%"))
     if q:
-        like = f"%{q}%"
-        stmt = stmt.where(
-            or_(Festival.title.ilike(like), Festival.description.ilike(like))
-        )
+        conds = []
+        for term in _expand_query(q):
+            like = f"%{term}%"
+            conds.extend([
+                Festival.title.ilike(like),
+                Festival.description.ilike(like),
+                Festival.category.ilike(like),
+                Festival.place.ilike(like),
+                Festival.organizer.ilike(like),
+                Festival.sigungu.ilike(like),
+            ])
+        stmt = stmt.where(or_(*conds))
     if date_from:
         stmt = stmt.where(
             or_(Festival.end_date >= date_from, Festival.end_date.is_(None))

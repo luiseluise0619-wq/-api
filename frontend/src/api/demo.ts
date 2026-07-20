@@ -78,6 +78,28 @@ const REGION_C: Record<string, [number, number]> = {
   제주특별자치도: [33.489, 126.4983],
 }
 
+// 연관 키워드 확장 — '소상공인' 검색 시 관련 축제까지 매칭
+const SYNONYMS: Record<string, string[]> = {
+  소상공인: ['소상공인', '시장', '상권', '전통시장', '먹거리', '특산', '야시장', '장터', '상인', '골목', '로컬', '창업'],
+  전통시장: ['전통시장', '시장', '장터', '상인', '먹거리', '상권'],
+  상권: ['상권', '시장', '소상공인', '먹거리', '전통시장'],
+  먹거리: ['먹거리', '음식', '맛', '미식', '푸드', '특산', '한우', '막국수', '국밥'],
+  꽃: ['꽃', '벚꽃', '장미', '유채', '튤립', '연꽃', '국화', '매화', '코스모스', '철쭉'],
+  불꽃: ['불꽃', '불빛', '빛', '야경', '등불', '유등'],
+  음악: ['음악', '재즈', '락', '뮤직', '콘서트', '가요', '오케스트라', '버스킹'],
+  문화: ['문화', '예술', '전통', '민속', '역사'],
+  바다: ['바다', '해변', '해수욕', '항', '포구', '어시장'],
+  겨울: ['겨울', '눈', '얼음', '빙어', '산천어', '눈꽃'],
+}
+
+function expandQuery(q: string): string[] {
+  const key = q.trim().toLowerCase()
+  for (const [k, list] of Object.entries(SYNONYMS)) {
+    if (key === k || key.includes(k)) return list.map((s) => s.toLowerCase())
+  }
+  return [key]
+}
+
 const TODAY = new Date()
 function status(f: Festival): string {
   if (!f.start_date && !f.end_date) return 'unknown'
@@ -94,13 +116,14 @@ function applyFilters(items: Festival[], f: Filters): Festival[] {
     if (f.category && !(x.category || '').includes(f.category)) return false
     if (f.status && status(x) !== f.status) return false
     if (f.q) {
-      const q = f.q.toLowerCase()
-      if (
-        !(x.title.toLowerCase().includes(q) ||
-          (x.region || '').toLowerCase().includes(q) ||
-          (x.sigungu || '').toLowerCase().includes(q))
-      )
-        return false
+      const terms = expandQuery(f.q)
+      const hay = [
+        x.title, x.region, x.sigungu, x.category, x.place, x.organizer,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      if (!terms.some((t) => hay.includes(t))) return false
     }
     if (f.date_from && x.end_date && x.end_date < f.date_from) return false
     if (f.date_to && x.start_date && x.start_date > f.date_to) return false
