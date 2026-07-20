@@ -589,6 +589,35 @@ def fetch_markets(page_size: int = 1000, max_pages: int = 20) -> list[dict]:
     return out
 
 
+def diag_markets() -> dict:
+    """전통시장 표준데이터 API 원시 응답 진단."""
+    if not settings.PUBLIC_DATA_API_KEY:
+        return {"ok": False, "error": "PUBLIC_DATA_API_KEY 미설정"}
+    url = "https://api.data.go.kr/openapi/tn_pubr_public_trdit_mrkt_api"
+    params = {
+        "serviceKey": settings.PUBLIC_DATA_API_KEY,
+        "pageNo": 1, "numOfRows": 3, "type": "json",
+    }
+    out: dict = {"url": url, "key_len": len(settings.PUBLIC_DATA_API_KEY)}
+    try:
+        with httpx.Client(timeout=20.0, follow_redirects=True) as client:
+            resp = client.get(url, params=params)
+        out["http_status"] = resp.status_code
+        text = resp.text.strip()
+        out["raw_snippet"] = text[:700]
+        parsed: Any = None
+        try:
+            parsed = json.loads(text) if text.startswith("{") else xmltodict.parse(text)
+        except Exception:  # noqa: BLE001
+            parsed = None
+        out["records_found"] = len(find_records(parsed)) if parsed else 0
+        out["ok"] = out["records_found"] > 0
+    except Exception as exc:  # noqa: BLE001
+        out["ok"] = False
+        out["error"] = f"{type(exc).__name__}: {str(exc)[:300]}"
+    return out
+
+
 def _iter_dicts(node: Any):
     if isinstance(node, dict):
         yield node

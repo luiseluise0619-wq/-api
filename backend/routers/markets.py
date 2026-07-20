@@ -16,8 +16,18 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Market
 from schemas import MarketNearResponse, MarketOut
+from services import collectors
 
 router = APIRouter(prefix="/api/markets", tags=["markets"])
+
+
+@router.get("/diag")
+def markets_diag(db: Session = Depends(get_db)):
+    """전통시장 수집 진단: DB 저장 건수 + 표준데이터 API 원시 응답."""
+    from sqlalchemy import func
+
+    count = db.execute(select(func.count(Market.id))).scalar_one()
+    return {"markets_in_db": count, "api": collectors.diag_markets()}
 
 
 def _haversine_km(lat1, lng1, lat2, lng2) -> float:
