@@ -24,10 +24,31 @@ router = APIRouter(prefix="/api/markets", tags=["markets"])
 @router.get("/diag")
 def markets_diag(db: Session = Depends(get_db)):
     """전통시장 수집 진단: DB 저장 건수 + 표준데이터 API 원시 응답."""
-    from sqlalchemy import func
-
     count = db.execute(select(func.count(Market.id))).scalar_one()
     return {"markets_in_db": count, "api": collectors.diag_markets()}
+
+
+@router.post("/collect")
+def collect_markets(db: Session = Depends(get_db)):
+    """전통시장만 즉시 수집·저장 (전체 수집과 별개)."""
+    recs = collectors.fetch_markets()
+    n = 0
+    for m in recs:
+        existing = db.execute(
+            select(Market).where(Market.source_id == m["source_id"])
+        ).scalar_one_or_none()
+        if existing is None:
+            db.add(Market(**m))
+        else:
+            for k, v in m.items():
+                setattr(existing, k, v)
+        n += 1
+    db.commit()
+    total = db.execute(select(func.count(Market.id))).scalar_one()
+    with_coords = db.execute(
+        select(func.count(Market.id)).where(Market.lat.is_not(None))
+    ).scalar_one()
+    return {"collected": n, "total_in_db": total, "with_coords": with_coords}
 
 
 def _haversine_km(lat1, lng1, lat2, lng2) -> float:
