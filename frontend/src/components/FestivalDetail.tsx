@@ -1,5 +1,5 @@
 import type { Festival } from '../types'
-import { festStatus, formatPeriod, statusMeta } from '../utils'
+import { festStatus, formatPeriod, sourceMeta, statusMeta } from '../utils'
 import AskAI from './AskAI'
 import NearbyMarkets from './NearbyMarkets'
 import StoredInsights from './StoredInsights'
@@ -52,6 +52,12 @@ export default function FestivalDetail({ festival, onClose }: Props) {
           )}
 
           {/* 메타 정보 */}
+          {(festival.lat == null || festival.lng == null) && (
+            <div className="text-[12px] text-amber-400/80 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">
+              📍 이 축제는 좌표(위치)가 제공되지 않아 지도 위치가 미정입니다.
+            </div>
+          )}
+
           <div className="bg-card border border-border rounded-xl divide-y divide-border text-sm">
             <Row label="지역" value={`${festival.region || ''} ${festival.sigungu || ''}`.trim()} />
             <Row label="기간" value={formatPeriod(festival)} />
@@ -60,18 +66,13 @@ export default function FestivalDetail({ festival, onClose }: Props) {
             <Row label="연락처" value={festival.tel} />
             <Row label="이용요금" value={festival.fee} />
             {festival.homepage && (
-              <div className="flex px-3 py-2.5">
-                <span className="text-white/40 w-20 shrink-0">홈페이지</span>
-                <a
-                  href={festival.homepage}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-accent hover:underline truncate"
-                >
-                  {festival.homepage}
-                </a>
-              </div>
+              <LinkRow label="홈페이지" href={festival.homepage} text={festival.homepage} />
             )}
+            <LinkRow
+              label="출처"
+              href={festival.detail_url || sourceMeta(festival.source).url}
+              text={sourceMeta(festival.source).label}
+            />
           </div>
 
           {festival.description && (
@@ -106,6 +107,22 @@ function Row({ label, value }: { label: string; value?: string | null }) {
     <div className="flex px-3 py-2.5">
       <span className="text-white/40 w-20 shrink-0">{label}</span>
       <span className="text-white/85 flex-1">{value}</span>
+    </div>
+  )
+}
+
+function LinkRow({ label, href, text }: { label: string; href: string; text: string }) {
+  return (
+    <div className="flex px-3 py-2.5">
+      <span className="text-white/40 w-20 shrink-0">{label}</span>
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="text-accent hover:underline truncate flex-1"
+      >
+        {text} ↗
+      </a>
     </div>
   )
 }

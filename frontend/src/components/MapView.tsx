@@ -58,6 +58,12 @@ export default function MapView({
   const [zoom, setZoom] = useState(7)
   const zf = zoomFactor(zoom)
 
+  // 선택한 축제가 현재 필터 결과에 없더라도 지도에 핀이 뜨도록 포함
+  const shown =
+    selected && selected.lat != null && !festivals.some((f) => f.id === selected.id)
+      ? [...festivals, selected]
+      : festivals
+
   return (
     <MapContainer
       center={[36.4, 127.9]}
@@ -101,7 +107,7 @@ export default function MapView({
                 </Tooltip>
               </CircleMarker>
             ))
-        : festivals
+        : shown
             .filter((f) => f.lat && f.lng)
             .map((f) => {
               const isSel = f.id === selected?.id
