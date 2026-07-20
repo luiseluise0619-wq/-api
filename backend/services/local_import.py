@@ -11,7 +11,7 @@ import math
 import os
 from typing import Optional
 
-from services.geocode import REGION_ALIASES, jittered_centroid
+from services.geocode import REGION_ALIASES, jittered_centroid, sigungu_centroid
 
 SOURCE_NAME = "mocst2026"
 
@@ -48,6 +48,16 @@ def _cell(row, idx) -> Optional[str]:
         return None
     v = row[idx]
     return None if v is None else str(v).strip()
+
+
+def _hash_offset(seed: str, spread: float) -> tuple[float, float]:
+    """seed 기반 결정적 (dx, dy) 오프셋. 같은 축제는 항상 같은 위치."""
+    h = 0
+    for ch in seed:
+        h = (h * 131 + ord(ch)) & 0xFFFFFFFF
+    dx = ((h & 0xFFFF) / 0xFFFF - 0.5) * 2 * spread
+    dy = (((h >> 16) & 0xFFFF) / 0xFFFF - 0.5) * 2 * spread
+    return dx, dy
 
 
 def _mk_date(y, m, d) -> Optional[dt.date]:
@@ -100,7 +110,14 @@ def load_festivals(path: str) -> list[dict]:
         addr_parts = [region, sigungu, _cell(row, 10), place]
         address = " ".join(p for p in addr_parts if p) or None
 
-        lat, lng = jittered_centroid(region, f"{seq}:{title}")
+        # 1) 시군구 중심좌표(정확) + 소폭 결정적 오프셋(겹침 방지)
+        # 2) 시군구 미확인 시 시도 중심 근사 배치
+        sg_lat, sg_lng = sigungu_centroid(region, sigungu)
+        if sg_lat is not None:
+            dx, dy = _hash_offset(f"{seq}:{title}", spread=0.018)
+            lat, lng = round(sg_lat + dy, 6), round(sg_lng + dx, 6)
+        else:
+            lat, lng = jittered_centroid(region, f"{seq}:{title}", spread=0.15)
 
         rec = {
             "source": SOURCE_NAME,

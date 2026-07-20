@@ -1,9 +1,9 @@
 import type { Festival } from '../types'
 import { festStatus, formatPeriod, statusMeta } from '../utils'
-import AIAnalysis from './AIAnalysis'
 import AskAI from './AskAI'
 import NearbyMarkets from './NearbyMarkets'
 import ScoreBadge from './ScoreBadge'
+import StoredInsights from './StoredInsights'
 
 interface Props {
   festival: Festival | null
@@ -86,16 +86,16 @@ export default function FestivalDetail({ festival, onClose }: Props) {
             </div>
           )}
 
+          {/* 저장 정보 기반 분석 (Gemini 미사용) */}
+          <StoredInsights festival={festival} />
+
           {/* 주변 전통시장 상권 (소상공인 연관) */}
           <NearbyMarkets lat={festival.lat} lng={festival.lng} />
 
-          {/* AI 심층 분석 */}
-          <AIAnalysis festivalId={festival.id} />
-
-          {/* 이 축제에 대한 질문 */}
+          {/* 이 축제에 대한 질문 — 여기서만 Gemini 호출 */}
           <AskAI
             festivalId={festival.id}
-            placeholder="이 축제에 대해 질문하세요"
+            placeholder="이 축제에 대해 질문하세요 (AI)"
           />
         </div>
       </div>
