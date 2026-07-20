@@ -114,6 +114,14 @@ def default_sources() -> list[SourceConfig]:
             kind="seoul", fmt="json", region_hint="서울특별시",
         ))
 
+    if settings.KCISA_API_KEY:
+        sources.append(SourceConfig(
+            name="mmca",
+            label="국립현대미술관 전시정보",
+            url="https://api.kcisa.kr/openapi/service/rest/moca/docMeta",
+            kind="kcisa", fmt="xml", region_hint=None,
+        ))
+
     if settings.KOPIS_API_KEY:
         sources.append(SourceConfig(
             name="kopis",
@@ -155,10 +163,10 @@ _DESC_KEYS = ["content", "itemcntnts", "description", "cn", "dc", "fstvlcn", "cn
               "event_cntnt", "evnt_cntnt", "evnt_cn", "fstvlco"]
 _ADDR_KEYS = ["address", "addr1", "addr", "rdnmadr", "lnmadr", "fstvlplc", "location"]
 _PLACE_KEYS = ["place", "main_place", "opar", "spot", "searchplc",
-               "eventplace", "std_nm", "fcltynm", "plc"]
+               "eventplace", "std_nm", "fcltynm", "plc", "venue"]
 _ORG_KEYS = ["manage", "opener", "organ", "host", "hostinsttnm", "organizer",
              "mnnstnm", "auspc", "sponsor", "event_host", "evnt_host",
-             "auspcinsttnm", "suprtinsttnm", "org_name"]
+             "auspcinsttnm", "suprtinsttnm", "org_name", "publisher", "creator"]
 _TEL_KEYS = ["phone", "tel", "cntct_tel", "cntctno", "telno", "cntctnumber",
              "phonenumber", "inquiry"]
 _HOMEPAGE_KEYS = ["homepage", "homepage_url", "hmpg", "url", "relate_url", "hmpgurl",
@@ -272,7 +280,16 @@ def normalize_item(
 
     address = _clean_str(_pick(lm, _ADDR_KEYS))
     organizer = _clean_str(_pick(lm, _ORG_KEYS))
-    region = source.region_hint or detect_region(address, organizer, title)
+
+    # 시작/종료일: 개별 필드 우선, 없으면 'eventPeriod/기간' 범위 문자열 파싱
+    start_date = parse_date(_pick(lm, _SDATE_KEYS))
+    end_date = parse_date(_pick(lm, _EDATE_KEYS))
+    if start_date is None and end_date is None:
+        rng = _pick(lm, ["eventperiod", "period", "playtime", "usage_day"])
+        start_date, end_date = parse_period_range(rng)
+
+    region = source.region_hint or detect_region(address, organizer, title, _clean_str(
+        _pick(lm, _PLACE_KEYS)))
 
     # 좌표가 없으면 광역시도 중심으로 근사 배치 (지도에 최소한 표시되도록)
     if lat is None or lng is None:
@@ -293,8 +310,8 @@ def normalize_item(
         "address": address,
         "lat": lat,
         "lng": lng,
-        "start_date": parse_date(_pick(lm, _SDATE_KEYS)),
-        "end_date": parse_date(_pick(lm, _EDATE_KEYS)),
+        "start_date": start_date,
+        "end_date": end_date,
         "period_text": _clean_str(_pick(lm, _PERIOD_KEYS)),
         "organizer": organizer,
         "tel": _clean_str(_pick(lm, _TEL_KEYS)),
@@ -370,6 +387,15 @@ def _build_params(
             "eventStartDate": "20200101",  # 과거~현재 폭넓게 수집
             "numOfRows": page_size,
             "pageNo": page,
+            **source.extra_params,
+        }
+    if source.kind == "kcisa":
+        # KCISA: serviceKey + numOfRows + pageNo (+ 빈 keyword 필수)
+        return {
+            "serviceKey": settings.KCISA_API_KEY,
+            "numOfRows": page_size,
+            "pageNo": page,
+            "keyword": "",
             **source.extra_params,
         }
     if source.kind == "kopis":

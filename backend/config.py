@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     YOUTUBE_API_KEY: str = ""
     # 서울 열린데이터광장 인증키 (선택) — 서울시 문화행사
     SEOUL_OPEN_API_KEY: str = ""
+    # KCISA(한국문화정보원) 인증키 (선택) — 국립현대미술관 전시 등
+    KCISA_API_KEY: str = ""
 
     # 추가 소스 주입용 JSON 배열 문자열.
     # 예) '[{"name":"changnyeong","label":"창녕군 행사",
