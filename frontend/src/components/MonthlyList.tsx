@@ -48,38 +48,42 @@ export default function MonthlyList({ filters, onSelect }: Props) {
     return { map, undated }
   }, [items])
 
+  const groups: { key: number; label: string; list: Festival[] }[] = [
+    ...MONTHS.map((m) => ({ key: m, label: `${m}월`, list: byMonth.map[m] || [] })),
+  ]
+  if (byMonth.undated.length > 0) {
+    groups.push({ key: 0, label: '날짜 미정', list: byMonth.undated })
+  }
+
   return (
     <div>
       <div className="text-xs font-semibold text-white/60 mb-2 flex items-center justify-between">
-        <span>
-          {ongoing ? '🟢 진행중인 축제 (월별)' : '🗓️ 월별 전체 축제'}
-        </span>
+        <span>{ongoing ? '🟢 진행중인 축제 (월별)' : '🗓️ 월별 전체 축제'}</span>
         <span className="text-white/30">{items.length.toLocaleString()}건</span>
       </div>
 
       {loading && <div className="text-xs text-white/40 py-2">불러오는 중...</div>}
 
       <div className="space-y-1.5">
-        {MONTHS.map((m) => {
-          const list = byMonth.map[m] || []
-          if (ongoing && list.length === 0) return null // 진행중 필터 땐 빈 달 숨김
-          const isOpen = open === m
+        {groups.map((g) => {
+          if (ongoing && g.list.length === 0) return null // 진행중 필터 땐 빈 달 숨김
+          const isOpen = open === g.key
           return (
-            <div key={m} className="border border-border rounded-lg overflow-hidden bg-card">
+            <div key={g.key} className="border border-border rounded-lg overflow-hidden bg-card">
               <button
-                onClick={() => setOpen(isOpen ? null : m)}
+                onClick={() => setOpen(isOpen ? null : g.key)}
                 className="w-full flex items-center justify-between px-3 py-2 hover:bg-cardhover transition"
               >
-                <span className="text-sm font-medium text-white/85">{m}월</span>
+                <span className="text-sm font-medium text-white/85">{g.label}</span>
                 <span className="flex items-center gap-2">
-                  <span className="text-[11px] text-white/40">{list.length}건</span>
+                  <span className="text-[11px] text-white/40">{g.list.length}건</span>
                   <span className="text-white/30 text-xs">{isOpen ? '▾' : '▸'}</span>
                 </span>
               </button>
 
-              {isOpen && list.length > 0 && (
+              {isOpen && g.list.length > 0 && (
                 <div className="border-t border-border divide-y divide-border/60">
-                  {list.map((f) => {
+                  {g.list.map((f) => {
                     const st = statusMeta[festStatus(f)]
                     return (
                       <button
@@ -100,10 +104,7 @@ export default function MonthlyList({ filters, onSelect }: Props) {
                             {formatPeriod(f)}
                           </span>
                         </span>
-                        <span
-                          className="text-[10px] shrink-0"
-                          style={{ color: st.color }}
-                        >
+                        <span className="text-[10px] shrink-0" style={{ color: st.color }}>
                           {st.label}
                         </span>
                       </button>
@@ -111,7 +112,7 @@ export default function MonthlyList({ filters, onSelect }: Props) {
                   })}
                 </div>
               )}
-              {isOpen && list.length === 0 && (
+              {isOpen && g.list.length === 0 && (
                 <div className="px-3 py-2 text-[11px] text-white/30 border-t border-border">
                   해당 월 축제 없음
                 </div>
@@ -119,12 +120,6 @@ export default function MonthlyList({ filters, onSelect }: Props) {
             </div>
           )
         })}
-
-        {byMonth.undated.length > 0 && !ongoing && (
-          <div className="text-[11px] text-white/30 px-1 pt-1">
-            + 날짜 미정 {byMonth.undated.length}건
-          </div>
-        )}
       </div>
     </div>
   )

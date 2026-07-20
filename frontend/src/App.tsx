@@ -8,6 +8,7 @@ import MonthlyList from './components/MonthlyList'
 import SocialPanel from './components/SocialPanel'
 import StatCards from './components/StatCards'
 import AskAI from './components/AskAI'
+import { downloadCsv, festivalsToCsv } from './utils'
 import type {
   Festival,
   Filters as FiltersType,
@@ -24,6 +25,17 @@ export default function App() {
   const [heatmap, setHeatmap] = useState(false)
   const [selected, setSelected] = useState<Festival | null>(null)
   const [loading, setLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      const { items } = await FestivalAPI.list(filters, 1, 5000)
+      downloadCsv(`festivals_${new Date().toISOString().slice(0, 10)}.csv`, festivalsToCsv(items))
+    } finally {
+      setExporting(false)
+    }
+  }
 
   // 초기 로드: 번들 시드로 즉시 표시 → 백엔드 응답 오면 최신화
   useEffect(() => {
@@ -87,6 +99,13 @@ export default function App() {
             heatmap={heatmap}
             onToggleHeatmap={setHeatmap}
           />
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="w-full text-sm bg-card hover:bg-cardhover border border-border rounded-lg py-2 text-white/80 disabled:opacity-50 transition"
+          >
+            {exporting ? '내보내는 중...' : '⬇ 엑셀(CSV) 목록 다운로드'}
+          </button>
           <MonthlyList filters={filters} onSelect={setSelected} />
           <AskAI placeholder="예) 소상공인에게 유리한 축제는?" />
         </div>

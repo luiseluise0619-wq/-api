@@ -66,6 +66,39 @@ export function sourceMeta(source?: string | null): { label: string; url: string
   )
 }
 
+// --- 엑셀(CSV) 내보내기 ---
+function csvCell(v: unknown): string {
+  const s = v == null ? '' : String(v)
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+
+export function festivalsToCsv(list: Festival[]): string {
+  const headers = [
+    '축제명', '광역', '시군구', '분류', '장소', '주최/주관',
+    '시작일', '종료일', '기간', '연락처', '홈페이지', '위도', '경도', '출처', '출처링크',
+  ]
+  const rows = list.map((f) => {
+    const src = sourceMeta(f.source)
+    return [
+      f.title, f.region, f.sigungu, f.category, f.place || f.address, f.organizer,
+      f.start_date, f.end_date, f.period_text, f.tel, f.homepage,
+      f.lat, f.lng, src.label, f.detail_url || src.url,
+    ].map(csvCell).join(',')
+  })
+  // 엑셀 한글 깨짐 방지용 BOM
+  return '﻿' + [headers.join(','), ...rows].join('\n')
+}
+
+export function downloadCsv(filename: string, csv: string): void {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function formatPeriod(f: Festival): string {
   if (f.start_date && f.end_date) {
     if (f.start_date === f.end_date) return f.start_date
