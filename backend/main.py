@@ -78,7 +78,7 @@ def root():
         "docs": "/docs",
         "endpoints": [
             "/api/health", "/api/festivals/map", "/api/festivals/stats",
-            "/api/festivals?q=검색어", "/api/markets/collect", "/api/collect (POST)",
+            "/api/festivals?q=검색어", "/api/markets/collect", "/api/collect",
         ],
     }
 
@@ -88,9 +88,10 @@ def health():
     return {"status": "ok", "service": "festival-ai-map"}
 
 
+@app.get("/api/collect", response_model=CollectResult, tags=["admin"])
 @app.post("/api/collect", response_model=CollectResult, tags=["admin"])
 async def collect_now():
-    """수동으로 전체 소스 수집을 즉시 실행 (관리용)."""
+    """수동으로 전체 소스 수집을 즉시 실행 (브라우저 GET 으로도 실행 가능)."""
     summary = await run_in_threadpool(scheduler.run_collection)
     return CollectResult(
         ok=True,
