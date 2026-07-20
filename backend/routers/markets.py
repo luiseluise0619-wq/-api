@@ -28,9 +28,10 @@ def markets_diag(db: Session = Depends(get_db)):
     return {"markets_in_db": count, "api": collectors.diag_markets()}
 
 
+@router.get("/collect")
 @router.post("/collect")
 def collect_markets(db: Session = Depends(get_db)):
-    """전통시장만 즉시 수집·저장 (전체 수집과 별개)."""
+    """전통시장만 즉시 수집·저장 (브라우저에서 GET 으로도 실행 가능)."""
     recs = collectors.fetch_markets()
     n = 0
     for m in recs:

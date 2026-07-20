@@ -2,7 +2,6 @@ import type { Festival } from '../types'
 import { festStatus, formatPeriod, statusMeta } from '../utils'
 import AskAI from './AskAI'
 import NearbyMarkets from './NearbyMarkets'
-import ScoreBadge from './ScoreBadge'
 import StoredInsights from './StoredInsights'
 
 interface Props {
@@ -51,8 +50,6 @@ export default function FestivalDetail({ festival, onClose }: Props) {
               onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')}
             />
           )}
-
-          <ScoreBadge score={festival.ai_score} />
 
           {/* 메타 정보 */}
           <div className="bg-card border border-border rounded-xl divide-y divide-border text-sm">

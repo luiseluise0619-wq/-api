@@ -1,22 +1,22 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   CircleMarker,
   MapContainer,
   Popup,
   TileLayer,
   Tooltip,
+  useMap,
   useMapEvents,
 } from 'react-leaflet'
 import type { Festival, RegionCount } from '../types'
-import { formatPeriod, scoreColor } from '../utils'
-import ScoreBadge from './ScoreBadge'
+import { festStatus, formatPeriod, statusMeta } from '../utils'
 
 interface Props {
   festivals: Festival[]
   regionCounts: RegionCount[]
   heatmap: boolean
   onSelect: (f: Festival) => void
-  selectedId?: number
+  selected?: Festival | null
 }
 
 // 줌 레벨에 따른 마커 크기 배율 — 넓게 볼수록 작게, 확대할수록 크게
@@ -24,7 +24,6 @@ function zoomFactor(zoom: number): number {
   return Math.max(0.5, Math.min(1.7, (zoom - 5) / 4.5))
 }
 
-// 카운트에 비례한 히트맵 원 반경(px)
 function heatRadius(count: number, max: number, zf: number): number {
   const r = (16 + (count / Math.max(1, max)) * 40) * Math.min(1.1, zf + 0.35)
   return Math.round(r)
@@ -35,12 +34,25 @@ function ZoomWatcher({ onZoom }: { onZoom: (z: number) => void }) {
   return null
 }
 
+// 선택된 축제로 지도를 부드럽게 이동 (목록에서 클릭 시 핀으로 날아감)
+function FlyToSelected({ selected }: { selected?: Festival | null }) {
+  const map = useMap()
+  useEffect(() => {
+    if (selected && selected.lat != null && selected.lng != null) {
+      map.flyTo([selected.lat, selected.lng], Math.max(map.getZoom(), 11), {
+        duration: 0.8,
+      })
+    }
+  }, [selected, map])
+  return null
+}
+
 export default function MapView({
   festivals,
   regionCounts,
   heatmap,
   onSelect,
-  selectedId,
+  selected,
 }: Props) {
   const maxCount = Math.max(1, ...regionCounts.map((r) => r.count))
   const [zoom, setZoom] = useState(7)
@@ -61,6 +73,7 @@ export default function MapView({
         url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
       />
       <ZoomWatcher onZoom={setZoom} />
+      <FlyToSelected selected={selected} />
 
       {heatmap
         ? regionCounts
@@ -77,7 +90,11 @@ export default function MapView({
                   weight: 1,
                 }}
               >
-                <Tooltip direction="center" permanent className="!bg-transparent !border-0 !shadow-none">
+                <Tooltip
+                  direction="center"
+                  permanent
+                  className="!bg-transparent !border-0 !shadow-none"
+                >
                   <span className="text-white text-xs font-semibold drop-shadow">
                     {r.region.replace(/특별자치도|특별자치시|특별시|광역시|도$/g, '')} {r.count}
                   </span>
@@ -87,22 +104,18 @@ export default function MapView({
         : festivals
             .filter((f) => f.lat && f.lng)
             .map((f) => {
-              const selected = f.id === selectedId
-              const color = scoreColor(f.ai_score)
+              const isSel = f.id === selected?.id
+              const color = statusMeta[festStatus(f)].color // 진행상태별 색
               return (
                 <CircleMarker
                   key={f.id}
                   center={[f.lat!, f.lng!]}
-                  radius={
-                    selected
-                      ? Math.max(9, 11 * zf)
-                      : Math.max(2, (3 + f.ai_score / 30) * zf)
-                  }
+                  radius={isSel ? Math.max(9, 11 * zf) : Math.max(2.5, 4 * zf)}
                   pathOptions={{
-                    color: selected ? '#fff' : color,
+                    color: isSel ? '#fff' : color,
                     fillColor: color,
-                    fillOpacity: 0.75,
-                    weight: selected ? 2 : 1,
+                    fillOpacity: 0.8,
+                    weight: isSel ? 2 : 1,
                   }}
                   eventHandlers={{ click: () => onSelect(f) }}
                 >
@@ -112,12 +125,11 @@ export default function MapView({
                       <div className="text-[11px] text-white/60 mb-1.5">
                         {f.region} {f.sigungu || ''} · {formatPeriod(f)}
                       </div>
-                      <ScoreBadge score={f.ai_score} size="sm" />
                       <button
                         onClick={() => onSelect(f)}
-                        className="mt-2 w-full text-xs bg-accent/80 hover:bg-accent text-white rounded-md py-1.5"
+                        className="mt-1 w-full text-xs bg-accent/80 hover:bg-accent text-white rounded-md py-1.5"
                       >
-                        상세 · AI 분석 보기
+                        상세 정보 보기
                       </button>
                     </div>
                   </Popup>

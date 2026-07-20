@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FestivalAPI } from './api/client'
+import { DemoAPI } from './api/demo'
 import Filters from './components/Filters'
 import FestivalDetail from './components/FestivalDetail'
 import MapView from './components/MapView'
 import MonthlyList from './components/MonthlyList'
 import SocialPanel from './components/SocialPanel'
 import StatCards from './components/StatCards'
-import TopFestivals from './components/TopFestivals'
 import AskAI from './components/AskAI'
 import type {
   Festival,
@@ -19,30 +19,42 @@ export default function App() {
   const [regions, setRegions] = useState<string[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [festivals, setFestivals] = useState<Festival[]>([])
-  const [top, setTop] = useState<Festival[]>([])
-  const [thisMonth, setThisMonth] = useState<Festival[]>([])
 
   const [filters, setFilters] = useState<FiltersType>({})
   const [heatmap, setHeatmap] = useState(false)
   const [selected, setSelected] = useState<Festival | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // 초기 로드
+  // 초기 로드: 번들 시드로 즉시 표시 → 백엔드 응답 오면 최신화
   useEffect(() => {
+    const seed = () => {
+      DemoAPI.stats().then(setStats).catch(() => {})
+      DemoAPI.regions().then(setRegions).catch(() => {})
+      DemoAPI.categories().then(setCategories).catch(() => {})
+    }
+    seed()
     FestivalAPI.stats().then(setStats).catch(() => {})
     FestivalAPI.regions().then(setRegions).catch(() => {})
     FestivalAPI.categories().then(setCategories).catch(() => {})
-    FestivalAPI.top(10).then(setTop).catch(() => {})
-    FestivalAPI.thisMonth(12).then(setThisMonth).catch(() => {})
   }, [])
 
-  // 필터 변경 시 지도 데이터 재조회
+  // 필터 변경 시: 시드로 즉시 핀 표시 → 라이브 오면 교체 (콜드스타트 대기 없이 바로 보임)
   useEffect(() => {
+    let liveDone = false
     setLoading(true)
     FestivalAPI.mapFestivals(filters)
-      .then(setFestivals)
-      .catch(() => setFestivals([]))
+      .then((fs) => {
+        liveDone = true
+        setFestivals(fs)
+      })
+      .catch(() => {})
       .finally(() => setLoading(false))
+    // 즉시 시드(정적 파일) — 라이브가 먼저 오지 않았다면 표시
+    DemoAPI.mapFestivals(filters)
+      .then((fs) => {
+        if (!liveDone) setFestivals(fs)
+      })
+      .catch(() => {})
   }, [filters])
 
   const regionCounts = useMemo(() => stats?.by_region ?? [], [stats])
@@ -75,12 +87,6 @@ export default function App() {
             heatmap={heatmap}
             onToggleHeatmap={setHeatmap}
           />
-          <TopFestivals
-            title="🔥 인기 축제 TOP 10"
-            festivals={top}
-            onSelect={setSelected}
-            numbered
-          />
           <MonthlyList filters={filters} onSelect={setSelected} />
           <AskAI placeholder="예) 소상공인에게 유리한 축제는?" />
         </div>
@@ -93,7 +99,7 @@ export default function App() {
           regionCounts={regionCounts}
           heatmap={heatmap}
           onSelect={setSelected}
-          selectedId={selected?.id}
+          selected={selected}
         />
         {/* 지도 상단 상태 배지 */}
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[500] flex items-center gap-2">
